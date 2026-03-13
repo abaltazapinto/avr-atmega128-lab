@@ -28,12 +28,13 @@
 
 int main(void)
 {
-	DDRC = 0xFF;
-	PORTC = 0xFF;
-
-	while (1)
+//	DDRC = 0xFF;
+//	PORTC = 0xFF;
+	uint8_t sw = PINA;
+	PORTC = sw;
+	/*while (1)
 	{
-	}
+	}*/
 
 	return 0;
 }
