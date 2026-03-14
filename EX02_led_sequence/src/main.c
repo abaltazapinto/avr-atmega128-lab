@@ -39,80 +39,72 @@
 /* **************************************************************************************** */
 
 #include <avr/io.h>
-#include <util/delay.h>
 #include <avr/interrupt.h>
-
-void timer0_init(void)
-{
-    /* CTC mode */
-    TCCR0 = (1 << WGM01);
-
-    /* prescaler = 256 */
-    TCCR0 |= (1 << CS02);
-
-    /* compare value para 2 ms */
-    OCR0 = 124;
-
-    /* enable compare interrupt */
-    TIMSK |= (1 << OCIE0);
-
-    /* enable global interrupts */
-    sei();
-}
-
+#include <stdint.h>
 
 volatile uint16_t tick_2ms = 0;
 
 ISR(TIMER0_COMP_vect)
 {
-	tick_2ms++;
+    tick_2ms++;
+}
+
+static void timer0_init(void)
+{
+    /* Timer0 em CTC, base de 2 ms */
+    TCCR0 = (1 << WGM01);   /* CTC */
+    TCCR0 |= (1 << CS02);   /* prescaler 256 */
+    OCR0 = 124;             /* 2 ms @ 16 MHz */
+    TIMSK |= (1 << OCIE0);  /* enable compare interrupt */
+    sei();
 }
 
 int main(void)
 {
-	/* LEDs -> PORTC (output) */
-	DDRC = 0xFF;
-	/* switches -> PORTA (input) */
-	DDRA = 0x00;
-	/* pull-ups para switches */
-	PORTA = 0xFF;
-	/* todos os LEDs apagados (active-low) */
-	uint8_t leds = 0xFF;
-	PORTC = leds; // todos apagados supostamente (active low)
-	uint16_t last_tick = 0;
-	while (1)
-	{
-		uint8_t sw = PINA;
-	/* SW1 pressionado (active-low) -> ligar D1 ate d8 acumulativamente */
-		if (!(sw & (1<< PA0)))
-		{
-		// sequência crescente D1 -> D8
-			if((uint16_t)(tick_2ms - last_tick) >= 500)
-			{
-				last_tick = tick_2ms;
+    uint8_t leds = 0xFF;
+    uint16_t last_tick = 0;
 
-				if (leds != 0x00)
-				{
-					leds = (leds << 1);
-					PORTC = leds;
-				}
-			}
-		}
+    /* LEDs D1..D8 em PORTC */
+    DDRC = 0xFF;
+    PORTC = leds;
 
-		/* SW2 pressionado (active-low) */
-		else if (!(sw & (1 << PA1)))
-		{
-		// sequência inversa D8 -> D1
-			if ((uint16_t)(tick_2ms - last_tick) >= 250)
-			{
-				last_tick = tick_2ms;
+    /* PORTA: PA0..PA5 switches, PA6..PA7 controlo da board */
+    DDRA  = 0b11000000;
+    PORTA = 0b11000000;
 
-				if(leds != 0xFF)
-				{
-					leds = (leds >> 1) | 0x80;
-					PORTC = leds;
-				}
-			}
-		}
-    	}
+    timer0_init();
+
+    while (1)
+    {
+        uint8_t sw = PINA;
+
+        /* SW1 -> sequência acumulativa D1 -> D8 com 1 s */
+        if (!(sw & (1 << PA0)))
+        {
+            if ((uint16_t)(tick_2ms - last_tick) >= 500)
+            {
+                last_tick = tick_2ms;
+
+                if (leds != 0x00)
+                {
+                    leds <<= 1;
+                    PORTC = leds;
+                }
+            }
+        }
+        /* SW2 -> sequência inversa D8 -> D1 com 0.5 s */
+        else if (!(sw & (1 << PA1)))
+        {
+            if ((uint16_t)(tick_2ms - last_tick) >= 250)
+            {
+                last_tick = tick_2ms;
+
+                if (leds != 0xFF)
+                {
+                    leds = (leds >> 1) | 0x80;
+                    PORTC = leds;
+                }
+            }
+        }
+    }
 }
