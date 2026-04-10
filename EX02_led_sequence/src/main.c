@@ -101,7 +101,7 @@ int main(void)
 
                 if (leds != 0xFF)
                 {
-                    leds = (leds >> 1) | 0x80;
+                    leds = (leds >> 1) | 0x80; (MSB)
                     PORTC = leds;
                 }
             }
